@@ -1,0 +1,87 @@
+"""ric: run | send | quit | install-hook | hook. Never `cursor-agent -p`: print mode fires no turn hooks."""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import sys
+import time
+from pathlib import Path
+from typing import Callable, List, Optional
+
+from . import hook, session
+
+OK, FAILED, CANNOT, TIMEOUT = 0, 1, 2, 124
+HOOKS_FILE = Path.home() / ".cursor" / "hooks.json"
+ENTRY = Path(__file__).resolve().parent.parent / "ric.py"
+
+
+def _print(result: dict, workspace: Path) -> int:
+    print(f"session: {result['session']}")
+    print(f"status: {result['status']}")
+    tokens = result.get("tokens") or {}
+    if tokens.get("input") is not None:
+        print(f"tokens: in={tokens['input']} out={tokens['output']}")
+    if result.get("warning"):
+        sys.stderr.write(f"warning: {result['warning']}\n")
+    print(f"log: {result['log']}")
+    print("--- screen ---")
+    print(result["screen"])
+    print("--- end ---")
+    name = result["session"]
+    print(f'next: ric send {name} "<reply>" --workspace {workspace}  |  ric quit {name} --workspace {workspace}')
+    return {"completed": OK, "timeout": TIMEOUT}.get(result["status"], FAILED)
+
+
+def main(argv: Optional[List[str]] = None, tmux=session._tmux, which: Callable = shutil.which,
+         sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic) -> int:
+    parser = argparse.ArgumentParser(prog="ric", description=__doc__)
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    run = sub.add_parser("run", help="start an interactive cursor-agent session with this prompt and wait for its turn")
+    run.add_argument("prompt")
+    send = sub.add_parser("send", help="answer in a running session and wait for the next turn")
+    send.add_argument("session")
+    send.add_argument("text")
+    quit_ = sub.add_parser("quit", help="leave a session (/quit), so Cursor sends sessionEnd")
+    quit_.add_argument("session")
+    for p in (run, send, quit_):
+        p.add_argument("--workspace", default=".")
+    for p in (run, send):
+        p.add_argument("--timeout", type=float, default=1800)
+    run.add_argument("--model", default=None)
+    run.add_argument("--deny", action="append", default=[], help="regex; a matching prompt is refused (repeatable)")
+    for p in (run, sub.add_parser("install-hook", help="add ric's hook to Cursor's global hooks.json")):
+        p.add_argument("--hooks-file", default=str(HOOKS_FILE))
+    sub.add_parser("hook", help="called by Cursor on stop and sessionEnd")
+    args = parser.parse_args(argv)
+
+    if args.cmd == "hook":  # inside Cursor's loop: always answer, never fail
+        try:
+            hook.record(json.loads(sys.stdin.read() or "{}"), os.environ.get("RUN_IN_CURSOR_LOG"))
+        except Exception:  # noqa: BLE001
+            pass
+        print("{}")
+        return OK
+    if args.cmd == "install-hook":
+        changed = hook.install(Path(args.hooks_file).expanduser(), f"{sys.executable} {ENTRY} hook")
+        print(f"{args.hooks_file}: {'hook added on stop and sessionEnd' if changed else 'hook already present'}")
+        return OK
+    for tool in ("tmux", "cursor-agent"):
+        if which(tool) is None:
+            sys.stderr.write(f"ric: {tool} is not on PATH\n")
+            return CANNOT
+    workspace = Path(args.workspace).resolve()
+    if args.cmd == "quit":
+        ended = session.quit(workspace, args.session, tmux=tmux, sleep=sleep, clock=clock)
+        print(f"{args.session}: {'ended' if ended else 'still running; check it with tmux attach -t ' + args.session}")
+        return OK if ended else FAILED
+    if args.cmd == "send":
+        return _print(session.send(workspace, args.session, args.text, timeout=args.timeout, tmux=tmux, sleep=sleep,
+                                   clock=clock), workspace)
+    reason = session.denied(args.prompt, args.deny)
+    if reason:
+        sys.stderr.write(f"ric: {reason}\n")
+        return FAILED
+    return _print(session.run(workspace, args.prompt, model=args.model, timeout=args.timeout, tmux=tmux, sleep=sleep,
+                              clock=clock, hooks_file=Path(args.hooks_file).expanduser()), workspace)
