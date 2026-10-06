@@ -137,7 +137,10 @@ def send(workspace: Path, name: str, text: str, timeout: float = 1800, deny: Ite
 
 def quit(workspace: Path, name: str, tmux=_tmux, sleep: Callable[[float], None] = time.sleep,
          clock: Callable[[], float] = time.monotonic, timeout: float = 15) -> bool:
-    """/quit then Enter; a second Enter if the session lives on (autocomplete takes the first). True once it ended."""
+    """/quit then Enter; a second Enter if the session lives on (autocomplete takes the first). True once it ended.
+    A session that does not exist raises LookupError: "ended" would hide a wrong name."""
+    if tmux(["has-session", "-t", name]).returncode != 0:
+        raise LookupError(name)
     _type(name, "/quit", tmux)
     sleep(1)
     tmux(["send-keys", "-t", name, "Enter"])

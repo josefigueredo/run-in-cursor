@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import sys
 import time
@@ -74,9 +75,19 @@ def main(argv: Optional[List[str]] = None, tmux=session._tmux, which: Callable =
             return CANNOT
     workspace = Path(args.workspace).resolve()
     if args.cmd == "quit":
-        ended = session.quit(workspace, args.session, tmux=tmux, sleep=sleep, clock=clock)
+        try:
+            ended = session.quit(workspace, args.session, tmux=tmux, sleep=sleep, clock=clock)
+        except LookupError:
+            print(f"{args.session}: no such session (tmux ls lists the running ones)")
+            return FAILED
         print(f"{args.session}: {'ended' if ended else 'still running; check it with tmux attach -t ' + args.session}")
         return OK if ended else FAILED
+    for pattern in args.deny:
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            sys.stderr.write(f"ric: invalid --deny {pattern!r}: {exc}\n")
+            return CANNOT
     text = args.text if args.cmd == "send" else args.prompt
     reason = session.denied(text, args.deny)
     if reason:

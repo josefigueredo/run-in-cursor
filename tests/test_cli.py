@@ -56,6 +56,17 @@ class RunCliTest(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("run it in Cursor", err)
 
+    def test_an_invalid_deny_pattern_is_a_usage_error(self):
+        # Minor 8: re.error surfaced as a traceback.
+        code, _, err = ric(["run", "--deny", "spec-kit.(sync", "hola"])
+        self.assertEqual(code, 2)
+        self.assertIn("invalid --deny", err)
+
+    def test_quit_of_an_unknown_session_exits_1(self):
+        code, out, _ = ric(["quit", "ric-nope-1", "--workspace", str(make_dir())])
+        self.assertEqual(code, 1)
+        self.assertIn("no such session", out)
+
     def test_timeout_exits_124(self):
         code, out, _ = ric(["run", "--workspace", str(make_dir()), "--hooks-file", hooked(), "--timeout", "10", "hola"], tmux=FakeTmux(turns=[None]))
         self.assertEqual(code, 124)

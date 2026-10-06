@@ -117,6 +117,13 @@ class SendQuitTest(unittest.TestCase):
         self.assertEqual(result["status"], "refused")
         self.assertNotIn("/spec-kit.sync-status x", [c[-1] for c in tmux.calls])
 
+    def test_quit_on_a_session_that_does_not_exist_says_so(self):
+        # Minor 7: every tmux error was ignored and has-session != 0 read as "ended".
+        tmux, clock = FakeTmux(), Clock()
+        with self.assertRaises(LookupError):
+            session.quit(make_dir(), "ric-nope-20261006-101500", tmux=tmux, sleep=clock.sleep, clock=clock)
+        self.assertEqual([c[0] for c in tmux.calls], ["has-session"])
+
     def test_quit_presses_enter_again_when_autocomplete_takes_the_first(self):
         ws, tmux, clock = make_dir(), FakeTmux(quit_enters=2), Clock()
         name = run(tmux, ws, clock=clock)["session"]
