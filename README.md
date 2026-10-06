@@ -33,9 +33,12 @@ global anote solo las sesiones que lanzó, y una línea `stop` nueva en ese log 
 | Comando | Qué hace |
 |---|---|
 | `ric run [--workspace D] [--model M] [--timeout S] [--deny REGEX] "<prompt>"` | Abre la sesión, espera el turno e imprime estado, tokens y pantalla |
-| `ric send <sesión> "<texto>"` | Responde en la sesión y espera el turno siguiente |
+| `ric send <sesión> [--deny REGEX] "<texto>"` | Responde en la sesión y espera el turno siguiente; `--deny` vale igual que en `run`, porque una respuesta que empieza con `/` corre como slash command |
 | `ric quit <sesión>` | `/quit` (y un segundo Enter, porque el primero lo toma el autocompletado) |
 | `ric install-hook` | Suma `ric hook` a `~/.cursor/hooks.json` en `stop` y `sessionEnd`, sin tocar lo demás |
+
+Sin el hook global, `ric run` se niega de entrada (exit 2): ningún turno podría avisar que terminó. Los nombres de sesión
+llevan fecha y hora (`ric-<comando>-AAAAMMDD-HHMMSS`).
 
 Salida: 0 completado · 1 abortado, error o rechazado · 124 timeout · 2 falta `tmux` o `cursor-agent`.
 Los logs quedan en `<workspace>/.run-in-cursor/runs/`, y la carpeta se agrega al `.gitignore` si el workspace es un repo.

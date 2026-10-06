@@ -11,7 +11,7 @@ from ric import session
 def run(tmux, workspace=None, clock=None, **kw):
     clock = clock or Clock()
     return session.run(workspace or make_dir(), kw.pop("prompt", "/probe-cmd hola"), tmux=tmux, sleep=clock.sleep,
-                       clock=clock, stamp=lambda: "101500", hooks_file=kw.pop("hooks_file", None), **kw)
+                       clock=clock, stamp=lambda: "101500", **kw)
 
 
 class DeniedTest(unittest.TestCase):
@@ -49,10 +49,27 @@ class RunTest(unittest.TestCase):
         result = run(FakeTmux(screen="\n ▄▄▄▄\n  OK\n ▀▀▀▀\n  → Add a follow-up\n"))
         self.assertEqual(result["screen"], "OK\n→ Add a follow-up")
 
-    def test_warns_when_the_global_hook_is_missing(self):
-        hooks = make_dir() / "hooks.json"
-        result = run(FakeTmux(), hooks_file=hooks)
-        self.assertIn('run "ric install-hook" first', result["warning"])
+    def test_a_stale_log_with_the_same_name_is_not_a_finished_turn(self):
+        # Review I2: a leftover log of an earlier run must not read as this run's stop line.
+        ws, clock = make_dir(), Clock()
+        old = session.log_path(ws.resolve(), "ric-probe-cmd-101500")
+        old.parent.mkdir(parents=True)
+        old.write_text('{"event": "stop", "status": "completed", "input_tokens": 1, "output_tokens": 1}\n', encoding="utf-8")
+        result = run(FakeTmux(turns=[None]), ws, clock=clock, timeout=10)
+        self.assertEqual(result["status"], "timeout")
+
+    def test_a_failed_launch_is_an_error_right_away(self):
+        class Refusing(FakeTmux):
+            def __call__(self, args):
+                done = super().__call__(args)
+                return done.__class__(args, 1, stdout="", stderr="duplicate session") if args[0] == "new-session" else done
+        clock = Clock()
+        result = run(Refusing(turns=[None]), clock=clock)
+        self.assertEqual((result["status"], clock.now), ("error", 0))
+        self.assertIn("duplicate session", result["warning"])
+
+    def test_session_names_carry_the_date(self):
+        self.assertRegex(session.default_stamp(), r"^\d{8}-\d{6}$")
 
     def test_the_run_folder_is_ignored_in_a_git_workspace(self):
         ws = make_dir()
@@ -74,7 +91,7 @@ class SendQuitTest(unittest.TestCase):
         session.quit(ws, name, tmux=tmux, sleep=clock.sleep, clock=clock)
         typed = [c for c in tmux.calls if c[0] == "send-keys"]
         for text in ("seguí", "/quit"):
-            at = typed.index(["send-keys", "-t", name, "-l", text])
+            at = typed.index(["send-keys", "-t", name, "-l", "--", text])
             self.assertEqual(typed[at - 1], ["send-keys", "-t", name, "C-u"], text)
 
     def test_send_waits_for_the_next_turn_only(self):
@@ -82,7 +99,23 @@ class SendQuitTest(unittest.TestCase):
         first = run(tmux, ws, clock=clock)
         second = session.send(ws, first["session"], "sí, seguí", tmux=tmux, sleep=clock.sleep, clock=clock)
         self.assertEqual(second["status"], "aborted")
-        self.assertIn(["send-keys", "-t", first["session"], "-l", "sí, seguí"], tmux.calls)
+        self.assertIn(["send-keys", "-t", first["session"], "-l", "--", "sí, seguí"], tmux.calls)
+
+    def test_a_reply_that_starts_with_a_dash_is_typed_literally(self):
+        # Review I4: `send-keys -l -foo` fails with "unknown flag"; `--` ends tmux's options.
+        ws, tmux, clock = make_dir(), FakeTmux(turns=["completed", "completed"]), Clock()
+        name = run(tmux, ws, clock=clock)["session"]
+        session.send(ws, name, "-1", tmux=tmux, sleep=clock.sleep, clock=clock)
+        self.assertIn(["send-keys", "-t", name, "-l", "--", "-1"], tmux.calls)
+
+    def test_send_refuses_a_denied_text(self):
+        # Review I3: a follow-up starting with / runs as a slash command, so send needs the same deny list.
+        ws, tmux, clock = make_dir(), FakeTmux(turns=["completed"]), Clock()
+        name = run(tmux, ws, clock=clock)["session"]
+        result = session.send(ws, name, "/spec-kit.sync-status x", deny=[r"spec-kit\.sync-status"], tmux=tmux,
+                              sleep=clock.sleep, clock=clock)
+        self.assertEqual(result["status"], "refused")
+        self.assertNotIn("/spec-kit.sync-status x", [c[-1] for c in tmux.calls])
 
     def test_quit_presses_enter_again_when_autocomplete_takes_the_first(self):
         ws, tmux, clock = make_dir(), FakeTmux(quit_enters=2), Clock()
@@ -90,7 +123,7 @@ class SendQuitTest(unittest.TestCase):
         self.assertTrue(session.quit(ws, name, tmux=tmux, sleep=clock.sleep, clock=clock))
         enters = [c for c in tmux.calls if c[:3] == ["send-keys", "-t", name] and c[-1] == "Enter"]
         self.assertEqual(len(enters), 2)
-        self.assertIn(["send-keys", "-t", name, "-l", "/quit"], tmux.calls)
+        self.assertIn(["send-keys", "-t", name, "-l", "--", "/quit"], tmux.calls)
 
 
 if __name__ == "__main__":

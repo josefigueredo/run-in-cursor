@@ -50,7 +50,8 @@ def main(argv: Optional[List[str]] = None, tmux=session._tmux, which: Callable =
     for p in (run, send):
         p.add_argument("--timeout", type=float, default=1800)
     run.add_argument("--model", default=None)
-    run.add_argument("--deny", action="append", default=[], help="regex; a matching prompt is refused (repeatable)")
+    for p in (run, send):
+        p.add_argument("--deny", action="append", default=[], help="regex; a matching text is refused (repeatable)")
     for p in (run, sub.add_parser("install-hook", help="add ric's hook to Cursor's global hooks.json")):
         p.add_argument("--hooks-file", default=str(HOOKS_FILE))
     sub.add_parser("hook", help="called by Cursor on stop and sessionEnd")
@@ -76,12 +77,17 @@ def main(argv: Optional[List[str]] = None, tmux=session._tmux, which: Callable =
         ended = session.quit(workspace, args.session, tmux=tmux, sleep=sleep, clock=clock)
         print(f"{args.session}: {'ended' if ended else 'still running; check it with tmux attach -t ' + args.session}")
         return OK if ended else FAILED
-    if args.cmd == "send":
-        return _print(session.send(workspace, args.session, args.text, timeout=args.timeout, tmux=tmux, sleep=sleep,
-                                   clock=clock), workspace)
-    reason = session.denied(args.prompt, args.deny)
+    text = args.text if args.cmd == "send" else args.prompt
+    reason = session.denied(text, args.deny)
     if reason:
         sys.stderr.write(f"ric: {reason}\n")
         return FAILED
+    if args.cmd == "send":
+        return _print(session.send(workspace, args.session, args.text, timeout=args.timeout, tmux=tmux, sleep=sleep,
+                                   clock=clock), workspace)
+    if not hook.installed(Path(args.hooks_file).expanduser()):
+        # Without the hook no turn ever reports its end: refuse now instead of waiting out the whole timeout.
+        sys.stderr.write(f'ric: the global hook is missing from {args.hooks_file}: run "ric install-hook" first\n')
+        return CANNOT
     return _print(session.run(workspace, args.prompt, model=args.model, timeout=args.timeout, tmux=tmux, sleep=sleep,
-                              clock=clock, hooks_file=Path(args.hooks_file).expanduser()), workspace)
+                              clock=clock), workspace)

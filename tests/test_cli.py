@@ -9,7 +9,13 @@ import unittest
 from unittest import mock
 
 from helpers import Clock, FakeTmux, make_dir
-from ric import cli
+from ric import cli, hook
+
+
+def hooked() -> str:
+    path = make_dir() / "hooks.json"
+    hook.install(path, "python3 /x/ric.py hook")
+    return str(path)
 
 
 def ric(args, tmux=None, which=lambda name: f"/usr/bin/{name}", stdin=""):
@@ -21,7 +27,7 @@ def ric(args, tmux=None, which=lambda name: f"/usr/bin/{name}", stdin=""):
 
 class RunCliTest(unittest.TestCase):
     def test_a_completed_run_prints_the_session_status_tokens_screen_and_next_step(self):
-        code, out, _ = ric(["run", "--workspace", str(make_dir()), "--hooks-file", str(make_dir() / "h.json"),
+        code, out, _ = ric(["run", "--workspace", str(make_dir()), "--hooks-file", hooked(),
                             "/probe-cmd hola"])
         self.assertEqual(code, 0)
         self.assertRegex(out, r"session: ric-probe-cmd-\d{6}")
@@ -36,13 +42,28 @@ class RunCliTest(unittest.TestCase):
         self.assertIn("run it in Cursor", err)
         self.assertEqual(tmux.calls, [])
 
+    def test_without_the_global_hook_it_refuses_before_launching(self):
+        # Review I1: without the hook no run can ever end; say so at once instead of after the whole timeout.
+        tmux = FakeTmux()
+        code, _, err = ric(["run", "--workspace", str(make_dir()), "--hooks-file", str(make_dir() / "none.json"), "hola"],
+                           tmux=tmux)
+        self.assertEqual(code, 2)
+        self.assertIn("ric install-hook", err)
+        self.assertEqual(tmux.calls, [])
+
+    def test_send_takes_deny_too(self):
+        code, _, err = ric(["send", "ric-x-1", "--deny", r"spec-kit\.sync-status", "--", "/SPEC-KIT.SYNC-STATUS x"])
+        self.assertEqual(code, 1)
+        self.assertIn("run it in Cursor", err)
+
     def test_timeout_exits_124(self):
-        code, out, _ = ric(["run", "--workspace", str(make_dir()), "--timeout", "10", "hola"], tmux=FakeTmux(turns=[None]))
+        code, out, _ = ric(["run", "--workspace", str(make_dir()), "--hooks-file", hooked(), "--timeout", "10", "hola"], tmux=FakeTmux(turns=[None]))
         self.assertEqual(code, 124)
         self.assertIn("status: timeout", out)
 
     def test_an_aborted_turn_exits_1(self):
-        self.assertEqual(ric(["run", "--workspace", str(make_dir()), "hola"], tmux=FakeTmux(turns=["aborted"]))[0], 1)
+        self.assertEqual(ric(["run", "--workspace", str(make_dir()), "--hooks-file", hooked(), "hola"],
+                             tmux=FakeTmux(turns=["aborted"]))[0], 1)
 
     def test_without_tmux_or_cursor_agent_it_cannot(self):
         code, _, err = ric(["run", "hola"], which=lambda name: None if name == "tmux" else "/usr/bin/x")

@@ -39,6 +39,11 @@ def _slug(prompt: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", first.lower()).strip("-")[:30] or "prompt"
 
 
+def default_stamp() -> str:
+    """Date and time: a name reused at the same HH:MM:SS of another day would point at an old log."""
+    return time.strftime("%Y%m%d-%H%M%S")
+
+
 def log_path(workspace: Path, name: str) -> Path:
     return workspace / ".run-in-cursor" / "runs" / f"{name}.jsonl"
 
@@ -89,35 +94,43 @@ def _wait(name: str, log: Path, seen: int, timeout: float, tmux, sleep, clock) -
         sleep(POLL_S)
 
 
+def _error(name: str, log: Path, status: str, warning: str) -> dict:
+    return {"session": name, "log": log, "status": status, "tokens": {}, "screen": "", "warning": warning}
+
+
 def run(workspace: Path, prompt: str, model: Optional[str] = None, timeout: float = 1800, tmux=_tmux,
         sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic,
-        stamp: Callable[[], str] = lambda: time.strftime("%H%M%S"), hooks_file: Optional[Path] = None) -> dict:
+        stamp: Callable[[], str] = default_stamp) -> dict:
     workspace = Path(workspace).resolve()
     name = f"ric-{_slug(prompt)}-{stamp()}"
     log = log_path(workspace, name)
     log.parent.mkdir(parents=True, exist_ok=True)
     _ignore(workspace)
+    seen = len(_stops(log))  # a leftover log under the same name is not this run's turn
     agent = "cursor-agent --trust --force" + (f" --model {shlex.quote(model)}" if model else "")
-    tmux(["new-session", "-d", "-s", name, "-x", "200", "-y", "50", "-c", str(workspace),
-          f"RUN_IN_CURSOR_LOG={shlex.quote(str(log))} {agent} {shlex.quote(prompt)}"])
-    result = _wait(name, log, 0, timeout, tmux, sleep, clock)
-    if hooks_file is not None and not hook.installed(Path(hooks_file)):
-        result["warning"] = 'the global hook is missing: run "ric install-hook" first; without it a run only ends by timeout'
-    return result
+    started = tmux(["new-session", "-d", "-s", name, "-x", "200", "-y", "50", "-c", str(workspace),
+                    f"RUN_IN_CURSOR_LOG={shlex.quote(str(log))} {agent} {shlex.quote(prompt)}"])
+    if started.returncode != 0:
+        return _error(name, log, "error", f"tmux could not start the session: {(started.stderr or '').strip()}")
+    return _wait(name, log, seen, timeout, tmux, sleep, clock)
 
 
-def _type(name: str, text: str, tmux) -> None:
+def _type(name: str, text: str, tmux) -> bool:
     """Empty the input, then type. After a follow-up turn cursor-agent leaves the sent text in its input (measured);
     without Ctrl-U the next text is appended to it. Ctrl-U on an empty input does nothing."""
     tmux(["send-keys", "-t", name, "C-u"])
-    tmux(["send-keys", "-t", name, "-l", text])
+    return tmux(["send-keys", "-t", name, "-l", "--", text]).returncode == 0  # `--`: a text may start with -
 
 
-def send(workspace: Path, name: str, text: str, timeout: float = 1800, tmux=_tmux,
+def send(workspace: Path, name: str, text: str, timeout: float = 1800, deny: Iterable[str] = (), tmux=_tmux,
          sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic) -> dict:
     log = log_path(Path(workspace).resolve(), name)
+    reason = denied(text, deny)  # a follow-up starting with / runs as a slash command: same deny list as run
+    if reason:
+        return _error(name, log, "refused", reason)
     seen = len(_stops(log))
-    _type(name, text, tmux)
+    if not _type(name, text, tmux):
+        return _error(name, log, "error", f"tmux could not type into {name}")
     tmux(["send-keys", "-t", name, "Enter"])
     return _wait(name, log, seen, timeout, tmux, sleep, clock)
 

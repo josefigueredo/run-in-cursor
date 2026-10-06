@@ -20,10 +20,11 @@ python3 ~/.agents/skills/run-in-cursor/ric.py <run|send|quit|install-hook> ...
    on stop and sessionEnd, next to whatever is there; it writes only for sessions `ric` started.
 2. **Run:** `ric run --workspace <repo> "<prompt or /command args>"` (add `--model` only if the user named one). Pass
    `--deny <regex>` for any command the user keeps for themselves. Wait for it: it returns when the turn ends.
-3. **Read the result:** exit 0 completed, 1 aborted, error or refused, 124 timeout, 2 tmux or cursor-agent missing.
+3. **Read the result:** exit 0 completed, 1 aborted, error or refused, 124 timeout, 2 tmux, cursor-agent or the
+   global hook missing (`ric install-hook`).
    Show the user the screen it printed, not your guess of it.
 4. **If Cursor asks something:** answer with `ric send <session> "<reply>" --workspace <repo>`; each reply is another
-   recorded turn. Ask the user when the answer is theirs to give.
+   recorded turn; pass the same `--deny` as the run. Ask the user when the answer is theirs to give.
 5. **Always end with** `ric quit <session> --workspace <repo>`, so Cursor sends sessionEnd.
 
 ## Rules
