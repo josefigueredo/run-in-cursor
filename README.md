@@ -5,7 +5,7 @@ agente, y deja la sesión registrada como uso real de Cursor: turnos, modelo y t
 alguien escribe en Cursor.
 
 ```bash
-git clone git@github.com:josefigueredo/runincursor.git run-in-cursor && cd run-in-cursor && ./install.sh
+git clone git@github.com:josefigueredo/run-in-cursor.git run-in-cursor && cd run-in-cursor && ./install.sh
 python3 ~/.agents/skills/run-in-cursor/ric.py run --workspace ~/mi-repo "/spec-kit.plan specs/001-x"
 ```
 
