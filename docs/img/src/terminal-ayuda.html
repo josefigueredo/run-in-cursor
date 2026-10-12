@@ -1,0 +1,39 @@
+<!doctype html><meta charset="utf-8"><style>*{box-sizing:border-box}body{margin:0;background:#cfd3e6;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Helvetica,Arial,sans-serif}
+.win{margin:22px;border-radius:12px;overflow:hidden;box-shadow:0 18px 50px rgba(20,20,40,.35),0 0 0 1px rgba(0,0,0,.25)}
+.bar{height:38px;background:#2b2b31;display:flex;align-items:center;padding:0 14px;position:relative}
+.dots span{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:8px}
+.dots .r{background:#ff5f57}.dots .y{background:#febc2e}.dots .g{background:#28c840}
+.ttl{position:absolute;left:0;right:0;text-align:center;color:#a9a9b3;font-size:13px}
+.term{background:#16161a;color:#e6e6ea;font:13.5px/1.5 Menlo,Monaco,monospace;padding:14px 18px 18px;white-space:pre}
+.p{color:#7ee787}.c{color:#7d8590}.o{color:#e6e6ea}.k{color:#79c0ff}</style><div class="win" style="width:996px"><div class="bar"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ttl">zsh — ~/run-in-cursor</div></div><div class="term"><span class="p">$</span> <span class="k">python3 ric.py --help</span>
+<span class="o">usage: ric [-h] {run,send,quit,install-hook,hook} ...</span>
+<span class="o"></span>
+<span class="o">ric: run | send | quit | install-hook | hook. Never `cursor-agent -p`: print</span>
+<span class="o">mode fires no turn hooks.</span>
+<span class="o"></span>
+<span class="o">positional arguments:</span>
+<span class="o">  {run,send,quit,install-hook,hook}</span>
+<span class="o">    run                 start an interactive cursor-agent session with this</span>
+<span class="o">                        prompt and wait for its turn</span>
+<span class="o">    send                answer in a running session and wait for the next turn</span>
+<span class="o">    quit                leave a session (/quit), so Cursor sends sessionEnd</span>
+<span class="o">    install-hook        add ric&#x27;s hook to Cursor&#x27;s global hooks.json</span>
+<span class="o">    hook                called by Cursor on stop and sessionEnd</span>
+<span class="o"></span>
+<span class="o">options:</span>
+<span class="o">  -h, --help            show this help message and exit</span>
+<span class="p">$</span> <span class="k">python3 ric.py run --help</span>
+<span class="o">usage: ric run [-h] [--workspace WORKSPACE] [--timeout TIMEOUT]</span>
+<span class="o">               [--model MODEL] [--deny DENY] [--hooks-file HOOKS_FILE]</span>
+<span class="o">               prompt</span>
+<span class="o"></span>
+<span class="o">positional arguments:</span>
+<span class="o">  prompt</span>
+<span class="o"></span>
+<span class="o">options:</span>
+<span class="o">  -h, --help            show this help message and exit</span>
+<span class="o">  --workspace WORKSPACE</span>
+<span class="o">  --timeout TIMEOUT</span>
+<span class="o">  --model MODEL</span>
+<span class="o">  --deny DENY           regex; a matching text is refused (repeatable)</span>
+<span class="o">  --hooks-file HOOKS_FILE</span></div></div>
