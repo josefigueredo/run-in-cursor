@@ -1,6 +1,7 @@
 ---
 name: run-in-cursor
 description: Use when the user asks to run something in Cursor from here ("corré esto en Cursor", "mandale a Cursor", send a prompt or a slash command such as /spec-kit.plan to Cursor's agent) and the session must count as real Cursor usage, with its turns, model and tokens reaching Cursor's hooks. Not for work this agent can do itself.
+compatibility: Requires python3 3.9+ (standard library only), tmux and a logged-in cursor-agent on PATH; running a prompt opens a real Cursor session and spends Cursor usage. ric install-hook adds a hook to ~/.cursor/hooks.json.
 ---
 
 # run-in-cursor
