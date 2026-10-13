@@ -51,6 +51,8 @@ def main(argv: Optional[List[str]] = None, tmux=session._tmux, which: Callable =
     for p in (run, send):
         p.add_argument("--timeout", type=float, default=1800)
     run.add_argument("--model", default=None)
+    run.add_argument("--plugin-dir", action="append", default=[], dest="plugin_dirs",
+                     help="load a local Cursor plugin directory (repeatable)")
     for p in (run, send):
         p.add_argument("--deny", action="append", default=[], help="regex; a matching text is refused (repeatable)")
     for p in (run, sub.add_parser("install-hook", help="add ric's hook to Cursor's global hooks.json")):
@@ -101,4 +103,5 @@ def main(argv: Optional[List[str]] = None, tmux=session._tmux, which: Callable =
         sys.stderr.write(f'ric: the global hook is missing from {args.hooks_file}: run "ric install-hook" first\n')
         return CANNOT
     return _print(session.run(workspace, args.prompt, model=args.model, timeout=args.timeout, tmux=tmux, sleep=sleep,
+                              plugin_dirs=[str(Path(d).expanduser()) for d in args.plugin_dirs],
                               clock=clock), workspace)

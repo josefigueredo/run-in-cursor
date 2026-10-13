@@ -33,6 +33,14 @@ class RunTest(unittest.TestCase):
         self.assertEqual(result["tokens"], {"input": 14779, "output": 133})
         self.assertEqual(result["screen"], "OK")
 
+    def test_loads_each_local_plugin_dir(self):
+        # cursor-agent does not read ~/.cursor/plugins/local by itself (measured 2026-10-13, 2026.10.01-e373342);
+        # --plugin-dir loads one plugin directory and can be repeated.
+        tmux = FakeTmux()
+        run(tmux, plugin_dirs=["/p/pdlc", "/p/with space"])
+        agent = tmux.calls[0][-1].split("cursor-agent", 1)[1]
+        self.assertIn("--plugin-dir /p/pdlc --plugin-dir '/p/with space'", agent)
+
     def test_never_print_mode(self):
         tmux = FakeTmux()
         run(tmux, model="composer-2.5")

@@ -35,6 +35,13 @@ class RunCliTest(unittest.TestCase):
         self.assertIn("tokens: in=14779 out=133", out)
         self.assertIn("next: ric send ric-probe-cmd-", out)
 
+    def test_run_passes_every_plugin_dir_to_cursor_agent(self):
+        tmux = FakeTmux()
+        code, _, _ = ric(["run", "--workspace", str(make_dir()), "--hooks-file", hooked(),
+                          "--plugin-dir", "/p/a", "--plugin-dir", "/p/b", "/probe-cmd hola"], tmux=tmux)
+        self.assertEqual(code, 0)
+        self.assertIn("--plugin-dir /p/a --plugin-dir /p/b", tmux.calls[0][-1])
+
     def test_a_denied_prompt_never_starts_a_session(self):
         tmux = FakeTmux()
         code, _, err = ric(["run", "--deny", r"spec-kit\.sync-status", "/spec-kit.sync-status x"], tmux=tmux)
