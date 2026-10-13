@@ -15,7 +15,7 @@ import shlex
 import subprocess
 import time
 from pathlib import Path
-from typing import Callable, Iterable, List, Optional
+from typing import Sequence, Callable, Iterable, List, Optional
 
 from . import hook
 
@@ -99,6 +99,7 @@ def _error(name: str, log: Path, status: str, warning: str) -> dict:
 
 
 def run(workspace: Path, prompt: str, model: Optional[str] = None, timeout: float = 1800, tmux=_tmux,
+        plugin_dirs: Sequence[str] = (),
         sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic,
         stamp: Callable[[], str] = default_stamp) -> dict:
     workspace = Path(workspace).resolve()
@@ -108,6 +109,8 @@ def run(workspace: Path, prompt: str, model: Optional[str] = None, timeout: floa
     _ignore(workspace)
     seen = len(_stops(log))  # a leftover log under the same name is not this run's turn
     agent = "cursor-agent --trust --force" + (f" --model {shlex.quote(model)}" if model else "")
+    # cursor-agent does not load ~/.cursor/plugins/local on its own; a local plugin comes in with --plugin-dir.
+    agent += "".join(f" --plugin-dir {shlex.quote(d)}" for d in plugin_dirs)
     started = tmux(["new-session", "-d", "-s", name, "-x", "200", "-y", "50", "-c", str(workspace),
                     f"RUN_IN_CURSOR_LOG={shlex.quote(str(log))} {agent} {shlex.quote(prompt)}"])
     if started.returncode != 0:
