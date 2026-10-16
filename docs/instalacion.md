@@ -89,7 +89,7 @@ El agente hace esto, en este orden:
 3. **Si Cursor hizo una pregunta que es tuya, te la pasa** y espera tu respuesta.
 
 El nombre de la sesión lleva el comando, la fecha y la hora (`ric-<comando>-AAAAMMDD-HHMMSS`). Los logs quedan en
-`<repo>/.run-in-cursor/runs/`, y si el repo es un repo de git esa carpeta se agrega a su `.gitignore`.
+`<repo>/.run-in-cursor/runs/`, y si el repo es de git y no la ignora ya, esa carpeta se agrega a su `info/exclude` local, nunca al `.gitignore` versionado.
 
 ## 4. Contestarle a Cursor
 
