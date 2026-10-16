@@ -79,14 +79,41 @@ class RunTest(unittest.TestCase):
     def test_session_names_carry_the_date(self):
         self.assertRegex(session.default_stamp(), r"^\d{8}-\d{6}$")
 
-    def test_the_run_folder_is_ignored_in_a_git_workspace(self):
+    def test_the_run_folder_is_ignored_locally_without_touching_gitignore(self):
+        # Measured 2026-10-16: writing .run-in-cursor/ into the tracked .gitignore left a diff in every feature branch.
         ws = make_dir()
         subprocess.run(["git", "init", "-q", str(ws)], check=True)
         (ws / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
         run(FakeTmux(), ws)
-        self.assertEqual((ws / ".gitignore").read_text(encoding="utf-8"), "node_modules/\n.run-in-cursor/\n")
         run(FakeTmux(), ws)
-        self.assertEqual((ws / ".gitignore").read_text(encoding="utf-8").count(".run-in-cursor/"), 1)
+        self.assertEqual((ws / ".gitignore").read_text(encoding="utf-8"), "node_modules/\n")
+        self.assertEqual(subprocess.run(["git", "-C", str(ws), "check-ignore", "-q", ".run-in-cursor/"]).returncode, 0)
+        exclude = (ws / ".git" / "info" / "exclude").read_text(encoding="utf-8")
+        self.assertEqual(exclude.splitlines().count(".run-in-cursor/"), 1)
+
+    def test_a_run_folder_already_ignored_adds_nothing(self):
+        ws = make_dir()
+        subprocess.run(["git", "init", "-q", str(ws)], check=True)
+        (ws / ".gitignore").write_text(".run-in-cursor/\n", encoding="utf-8")
+        exclude = ws / ".git" / "info" / "exclude"
+        before = exclude.read_text(encoding="utf-8") if exclude.is_file() else ""
+        run(FakeTmux(), ws)
+        after = exclude.read_text(encoding="utf-8") if exclude.is_file() else ""
+        self.assertEqual(after, before)
+
+    def test_in_a_worktree_the_run_folder_is_ignored_through_the_shared_exclude(self):
+        main = make_dir()
+        git = ["git", "-C", str(main), "-c", "user.email=t@t", "-c", "user.name=t"]
+        subprocess.run(["git", "init", "-q", str(main)], check=True)
+        (main / ".gitignore").write_text("node_modules/\n", encoding="utf-8")
+        subprocess.run(git + ["add", "."], check=True)
+        subprocess.run(git + ["commit", "-qm", "init"], check=True)
+        ws = make_dir() / "wt"
+        subprocess.run(git + ["worktree", "add", "-q", str(ws)], check=True)
+        run(FakeTmux(), ws)
+        self.assertEqual((ws / ".gitignore").read_text(encoding="utf-8"), "node_modules/\n")
+        self.assertEqual(subprocess.run(["git", "-C", str(ws), "status", "--porcelain"], capture_output=True,
+                                        text=True).stdout, "")
 
 
 class SendQuitTest(unittest.TestCase):

@@ -70,13 +70,21 @@ def _screen(name: str, tmux) -> str:
 
 
 def _ignore(workspace: Path) -> None:
-    """Keep the run logs out of the workspace's git, if it is a repo."""
+    """Keep the run logs out of the workspace's git, if it is a repo, without touching its tracked .gitignore:
+    the entry goes to the repo's local info/exclude (shared by its worktrees) and only when git does not ignore it yet."""
     if not (workspace / ".git").exists():
         return
-    path = workspace / ".gitignore"
+    git = ["git", "-C", str(workspace)]
+    if subprocess.run(git + ["check-ignore", "-q", ".run-in-cursor/"]).returncode == 0:
+        return
+    found = subprocess.run(git + ["rev-parse", "--git-path", "info/exclude"], capture_output=True, text=True)
+    if found.returncode != 0:
+        return
+    path = Path(found.stdout.strip())
+    path = path if path.is_absolute() else workspace / path
+    path.parent.mkdir(parents=True, exist_ok=True)
     text = path.read_text(encoding="utf-8") if path.is_file() else ""
-    if ".run-in-cursor/" not in text.splitlines():
-        path.write_text(text + ("" if not text or text.endswith("\n") else "\n") + ".run-in-cursor/\n", encoding="utf-8")
+    path.write_text(text + ("" if not text or text.endswith("\n") else "\n") + ".run-in-cursor/\n", encoding="utf-8")
 
 
 def _wait(name: str, log: Path, seen: int, timeout: float, tmux, sleep, clock) -> dict:

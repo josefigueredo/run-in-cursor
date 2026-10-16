@@ -45,7 +45,7 @@ llevan fecha y hora (`ric-<comando>-AAAAMMDD-HHMMSS`).
 
 Salida: 0 completado · 1 abortado, error o rechazado · 124 timeout · 2 falta `tmux` o `cursor-agent`, falta el hook global,
 o un `--deny` que no es una regex válida.
-Los logs quedan en `<workspace>/.run-in-cursor/runs/`, y la carpeta se agrega al `.gitignore` si el workspace es un repo.
+Los logs quedan en `<workspace>/.run-in-cursor/runs/`, y si el workspace es un repo de git que no la ignora ya, la carpeta se agrega a su `info/exclude` local, nunca al `.gitignore` versionado.
 
 ## Desarrollar
 

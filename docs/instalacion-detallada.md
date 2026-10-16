@@ -95,8 +95,8 @@ python3 $ric quit ric-spec-kit-plan-AAAAMMDD-HHMMSS --workspace ~/mi-repo
 - `ric run` imprime `session:`, `status:`, `tokens:` (cuando hay), `log:`, la pantalla entre `--- screen ---` y
   `--- end ---`, y una línea `next:` con el `send` y el `quit` ya armados.
 - El nombre de la sesión es `ric-<primera palabra del prompt>-AAAAMMDD-HHMMSS`.
-- Los logs quedan en `<repo>/.run-in-cursor/runs/<sesión>.jsonl`, y la carpeta se agrega al `.gitignore` si el repo
-  es un repo de git.
+- Los logs quedan en `<repo>/.run-in-cursor/runs/<sesión>.jsonl`, y si el repo es de git y no la ignora ya,
+  la carpeta se agrega a su `info/exclude` local (nunca al `.gitignore` versionado, así no ensucia la rama).
 - Los parámetros de `run` (`--workspace`, `--timeout` en segundos —1800 por defecto—, `--model`, `--deny`, `--hooks-file`)
   están en esta captura de `ric --help` y `ric run --help`:
 
