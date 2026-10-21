@@ -12,7 +12,7 @@ afterAgentResponse, stop, sessionEnd), exactly as when the user types in Cursor,
 records the session.
 
 ```bash
-python3 ~/.agents/skills/run-in-cursor/ric.py <run|send|quit|install-hook> ...
+python3 ~/.agents/skills/run-in-cursor/ric.py <run|send|keys|quit|install-hook> ...
 ```
 
 ## Steps
@@ -28,6 +28,10 @@ python3 ~/.agents/skills/run-in-cursor/ric.py <run|send|quit|install-hook> ...
    Show the user the screen it printed, not your guess of it.
 4. **If Cursor asks something:** answer with `ric send <session> "<reply>" --workspace <repo>`; each reply is another
    recorded turn; pass the same `--deny` as the run. Ask the user when the answer is theirs to give.
+   If it asks with a menu (options with `›` and `[ ]`), text does not answer it: press keys with
+   `ric keys <session> Down Space Enter --workspace <repo>`. Each key waits 3 s (`--pause`), because keys sent in one
+   burst were dropped (measured); read the screen it prints before the next key, and add `--wait` on the last one
+   to wait for the turn.
 5. **Always end with** `ric quit <session> --workspace <repo>`, so Cursor sends sessionEnd.
 
 ## Rules

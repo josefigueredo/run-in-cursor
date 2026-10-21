@@ -21,6 +21,9 @@ from . import hook
 
 POLL_S = 2
 NAME_ATTEMPTS = 99  # a name and its suffixes -2..-99
+KEY_PAUSE_S = 3  # one key every 3 s landed every time in a Cursor question menu (measured 2026-10-21)
+KEYS = frozenset({"Up", "Down", "Left", "Right", "Space", "Enter", "Escape", "Tab", "BTab", "BSpace", "Home", "End",
+                  "PageUp", "PageDown"})
 _BORDER = re.compile(r"^\s*[▄▀]+\s*$")
 
 
@@ -151,6 +154,28 @@ def send(workspace: Path, name: str, text: str, timeout: float = 1800, deny: Ite
         return _error(name, log, "error", f"tmux could not type into {name}")
     tmux(["send-keys", "-t", name, "Enter"])
     return _wait(name, log, seen, timeout, tmux, sleep, clock)
+
+
+def keys(workspace: Path, name: str, names: Sequence[str], pause: float = KEY_PAUSE_S, wait: bool = False,
+         timeout: float = 1800, tmux=_tmux, sleep: Callable[[float], None] = time.sleep,
+         clock: Callable[[], float] = time.monotonic) -> dict:
+    """Press keys one at a time, for Cursor's question menus, which take keys and not text. Keys sent in one burst were
+    mostly dropped (measured 2026-10-21), so each one waits `pause` seconds. Answering a menu may not end the turn, so
+    by default the screen comes back right away; `wait` waits for the next turn like send."""
+    unknown = [k for k in names if k not in KEYS]
+    if unknown:
+        raise ValueError(f"unknown key {unknown[0]!r}; use one of {' '.join(sorted(KEYS))}, or send for text")
+    if tmux(["has-session", "-t", name]).returncode != 0:
+        raise LookupError(name)
+    log = log_path(Path(workspace).resolve(), name)
+    seen = len(_stops(log))
+    for key in names:
+        if tmux(["send-keys", "-t", name, key]).returncode != 0:
+            return _error(name, log, "error", f"tmux could not press {key} in {name}")
+        sleep(pause)  # also before reading the screen: the menu repaints after the last key
+    if wait:
+        return _wait(name, log, seen, timeout, tmux, sleep, clock)
+    return {"session": name, "log": log, "status": "sent", "tokens": {}, "screen": _screen(name, tmux), "warning": ""}
 
 
 def quit(workspace: Path, name: str, tmux=_tmux, sleep: Callable[[float], None] = time.sleep,

@@ -37,6 +37,7 @@ global anote solo las sesiones que lanzó, y una línea `stop` nueva en ese log 
 |---|---|
 | `ric run [--workspace D] [--model M] [--timeout S] [--deny REGEX] "<prompt>"` | Abre la sesión, espera el turno e imprime estado, tokens y pantalla |
 | `ric send <sesión> [--deny REGEX] "<texto>"` | Responde en la sesión y espera el turno siguiente; `--deny` vale igual que en `run`, porque una respuesta que empieza con `/` corre como slash command |
+| `ric keys <sesión> TECLA… [--pause S] [--wait]` | Aprieta teclas de a una, para los menús de preguntas de Cursor, que no aceptan texto: `Up`, `Down`, `Left`, `Right`, `Space`, `Enter`, `Escape`, `Tab`, `BTab`, `BSpace`, `Home`, `End`, `PageUp`, `PageDown`. Espera 3 s después de cada una, porque las que se mandaron juntas se perdieron (medido el 2026-10-21), y devuelve la pantalla sin esperar el turno; con `--wait`, lo espera. Una tecla desconocida sale con 2, antes de apretar nada |
 | `ric quit <sesión>` | `/quit` (y un segundo Enter, porque el primero lo toma el autocompletado) |
 | `ric install-hook` | Suma `ric hook` a `~/.cursor/hooks.json` en `stop` y `sessionEnd`, sin tocar lo demás |
 
