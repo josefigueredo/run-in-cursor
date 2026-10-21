@@ -20,6 +20,7 @@ from typing import Sequence, Callable, Iterable, List, Optional
 from . import hook
 
 POLL_S = 2
+NAME_ATTEMPTS = 99  # a name and its suffixes -2..-99
 _BORDER = re.compile(r"^\s*[▄▀]+\s*$")
 
 
@@ -111,19 +112,25 @@ def run(workspace: Path, prompt: str, model: Optional[str] = None, timeout: floa
         sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic,
         stamp: Callable[[], str] = default_stamp) -> dict:
     workspace = Path(workspace).resolve()
-    name = f"ric-{_slug(prompt)}-{stamp()}"
-    log = log_path(workspace, name)
-    log.parent.mkdir(parents=True, exist_ok=True)
+    base = f"ric-{_slug(prompt)}-{stamp()}"
     _ignore(workspace)
-    seen = len(_stops(log))  # a leftover log under the same name is not this run's turn
     agent = "cursor-agent --trust --force" + (f" --model {shlex.quote(model)}" if model else "")
     # cursor-agent does not load ~/.cursor/plugins/local on its own; a local plugin comes in with --plugin-dir.
     agent += "".join(f" --plugin-dir {shlex.quote(d)}" for d in plugin_dirs)
-    started = tmux(["new-session", "-d", "-s", name, "-x", "200", "-y", "50", "-c", str(workspace),
-                    f"RUN_IN_CURSOR_LOG={shlex.quote(str(log))} {agent} {shlex.quote(prompt)}"])
-    if started.returncode != 0:
-        return _error(name, log, "error", f"tmux could not start the session: {(started.stderr or '').strip()}")
-    return _wait(name, log, seen, timeout, tmux, sleep, clock)
+    # Two runs started in the same second with the same first word share a name (measured 2026-10-21). new-session
+    # is atomic, so a taken name is retried with the next suffix instead of checked beforehand.
+    for attempt in range(1, NAME_ATTEMPTS + 1):
+        name = base if attempt == 1 else f"{base}-{attempt}"
+        log = log_path(workspace, name)
+        log.parent.mkdir(parents=True, exist_ok=True)
+        seen = len(_stops(log))  # a leftover log under the same name is not this run's turn
+        started = tmux(["new-session", "-d", "-s", name, "-x", "200", "-y", "50", "-c", str(workspace),
+                        f"RUN_IN_CURSOR_LOG={shlex.quote(str(log))} {agent} {shlex.quote(prompt)}"])
+        if started.returncode == 0:
+            return _wait(name, log, seen, timeout, tmux, sleep, clock)
+        if "duplicate session" not in (started.stderr or ""):
+            break
+    return _error(name, log, "error", f"tmux could not start the session: {(started.stderr or '').strip()}")
 
 
 def _type(name: str, text: str, tmux) -> bool:
