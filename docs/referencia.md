@@ -41,7 +41,7 @@ global anote solo las sesiones que lanzó, y una línea `stop` nueva en ese log 
 | `ric install-hook` | Suma `ric hook` a `~/.cursor/hooks.json` en `stop` y `sessionEnd`, sin tocar lo demás |
 
 Sin el hook global, `ric run` se niega de entrada (exit 2): ningún turno podría avisar que terminó. Los nombres de sesión
-llevan fecha y hora (`ric-<comando>-AAAAMMDD-HHMMSS`).
+llevan fecha y hora (`ric-<comando>-AAAAMMDD-HHMMSS`); si ese nombre ya existe en tmux, suman `-2`, `-3`… hasta `-99`.
 
 Salida: 0 completado · 1 abortado, error o rechazado · 124 timeout · 2 falta `tmux` o `cursor-agent`, falta el hook global,
 o un `--deny` que no es una regex válida.

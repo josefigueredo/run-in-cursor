@@ -14,6 +14,20 @@ def run(tmux, workspace=None, clock=None, **kw):
                        clock=clock, stamp=lambda: "101500", **kw)
 
 
+class Taken(FakeTmux):
+    """A tmux server where some session names already exist."""
+
+    def __init__(self, names, **kw):
+        super().__init__(**kw)
+        self.names = set(names)
+
+    def __call__(self, args):
+        if args[0] == "new-session" and args[args.index("-s") + 1] in self.names:
+            self.calls.append(list(args))
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr=f"duplicate session: {args[args.index('-s') + 1]}")
+        return super().__call__(args)
+
+
 class DeniedTest(unittest.TestCase):
     def test_a_matching_pattern_refuses_whatever_the_case_or_spacing(self):
         for prompt in ("/spec-kit.sync-status specs/x", "   /SPEC-KIT.SYNC-STATUS"):
@@ -70,10 +84,29 @@ class RunTest(unittest.TestCase):
         class Refusing(FakeTmux):
             def __call__(self, args):
                 done = super().__call__(args)
-                return done.__class__(args, 1, stdout="", stderr="duplicate session") if args[0] == "new-session" else done
+                return done.__class__(args, 1, stdout="", stderr="no server running") if args[0] == "new-session" else done
         clock = Clock()
         result = run(Refusing(turns=[None]), clock=clock)
         self.assertEqual((result["status"], clock.now), ("error", 0))
+        self.assertIn("no server running", result["warning"])
+
+    def test_a_taken_name_gets_the_next_free_suffix(self):
+        # Measured 2026-10-21: two runs launched in the same second with the same first word got the same name, and
+        # the second one failed with "duplicate session". tmux new-session is atomic, so retrying is race-free.
+        ws = make_dir().resolve()
+        tmux = Taken({"ric-probe-cmd-101500", "ric-probe-cmd-101500-2"})
+        result = run(tmux, ws)
+        log = ws / ".run-in-cursor" / "runs" / "ric-probe-cmd-101500-3.jsonl"
+        self.assertEqual((result["session"], result["status"], result["log"]), ("ric-probe-cmd-101500-3", "completed", log))
+        launches = [c for c in tmux.calls if c[0] == "new-session"]
+        self.assertEqual([c[c.index("-s") + 1] for c in launches],
+                         ["ric-probe-cmd-101500", "ric-probe-cmd-101500-2", "ric-probe-cmd-101500-3"])
+        self.assertIn(f"RUN_IN_CURSOR_LOG={log} ", launches[-1][-1])
+
+    def test_a_name_taken_too_many_times_is_an_error(self):
+        names = {"ric-probe-cmd-101500"} | {f"ric-probe-cmd-101500-{n}" for n in range(2, 100)}
+        result = run(Taken(names, turns=[None]))
+        self.assertEqual(result["status"], "error")
         self.assertIn("duplicate session", result["warning"])
 
     def test_session_names_carry_the_date(self):
