@@ -89,6 +89,29 @@ class RunCliTest(unittest.TestCase):
         self.assertIn("tmux", err)
 
 
+class KeysCliTest(unittest.TestCase):
+    def test_keys_print_the_screen_and_exit_0(self):
+        tmux = FakeTmux()
+        tmux.alive = True
+        code, out, _ = ric(["keys", "ric-x-1", "Down", "Space", "--workspace", str(make_dir()), "--pause", "0.5"],
+                           tmux=tmux)
+        self.assertEqual(code, 0)
+        self.assertIn("status: sent", out)
+        self.assertEqual([c[-1] for c in tmux.calls if c[0] == "send-keys"], ["Down", "Space"])
+
+    def test_an_unknown_key_cannot(self):
+        tmux = FakeTmux()
+        tmux.alive = True
+        code, _, err = ric(["keys", "ric-x-1", "hola", "--workspace", str(make_dir())], tmux=tmux)
+        self.assertEqual(code, 2)
+        self.assertIn("hola", err)
+
+    def test_keys_on_a_missing_session_fail(self):
+        code, out, _ = ric(["keys", "ric-nope-1", "Enter", "--workspace", str(make_dir())])
+        self.assertEqual(code, 1)
+        self.assertIn("no such session", out)
+
+
 class HookCliTest(unittest.TestCase):
     def test_hook_writes_to_the_run_log_and_answers_an_empty_object(self):
         log = make_dir() / "r.jsonl"

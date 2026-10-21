@@ -203,3 +203,45 @@ class SendQuitTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KeysTest(unittest.TestCase):
+    """Cursor's question menus take keys, not text. Measured 2026-10-21: keys sent in one burst were mostly dropped;
+    one key every 3 s landed every time."""
+
+    def _alive(self, ws, name="ric-x-1"):
+        tmux = FakeTmux()
+        tmux.alive = True
+        tmux.log = session.log_path(ws.resolve(), name)
+        tmux.log.parent.mkdir(parents=True, exist_ok=True)
+        return tmux
+
+    def test_presses_each_key_on_its_own_with_a_pause_and_shows_the_screen(self):
+        ws, clock = make_dir(), Clock()
+        tmux = self._alive(ws)
+        result = session.keys(ws, "ric-x-1", ["Down", "Space", "Enter"], pause=3, tmux=tmux, sleep=clock.sleep,
+                              clock=clock)
+        pressed = [c for c in tmux.calls if c[0] == "send-keys"]
+        self.assertEqual(pressed, [["send-keys", "-t", "ric-x-1", k] for k in ("Down", "Space", "Enter")])
+        self.assertEqual((result["status"], result["screen"]), ("sent", "OK"))
+        self.assertGreaterEqual(clock.now, 9)  # between keys and before reading the screen
+
+    def test_the_default_pause_is_the_measured_one(self):
+        self.assertEqual(session.KEY_PAUSE_S, 3)
+
+    def test_with_wait_it_returns_the_next_turn(self):
+        ws, clock = make_dir(), Clock()
+        result = session.keys(ws, "ric-x-1", ["Enter"], wait=True, tmux=self._alive(ws), sleep=clock.sleep,
+                              clock=clock)
+        self.assertEqual((result["status"], result["tokens"]), ("completed", {"input": 14779, "output": 133}))
+
+    def test_an_unknown_key_is_refused_before_pressing_anything(self):
+        ws = make_dir()
+        tmux = self._alive(ws)
+        with self.assertRaises(ValueError):
+            session.keys(ws, "ric-x-1", ["Down", "hola"], tmux=tmux, sleep=Clock().sleep, clock=Clock())
+        self.assertFalse([c for c in tmux.calls if c[0] == "send-keys"])
+
+    def test_a_session_that_does_not_exist_raises(self):
+        with self.assertRaises(LookupError):
+            session.keys(make_dir(), "ric-nope-1", ["Enter"], tmux=FakeTmux(), sleep=Clock().sleep, clock=Clock())
