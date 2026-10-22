@@ -39,6 +39,7 @@ uso de Cursor. El recorrido está en el [showcase](docs/showcase.md#1-mandar-un-
 | **Instalarlo y probarlo, conversando con tu agente** | [Instalación y primer uso](docs/instalacion.md) | Todo con prompts a Claude Code, Codex o Cursor: instalar, tu primera corrida, responder, cerrar y poner límites |
 | **Instalarlo comando por comando** | [Instalación detallada](docs/instalacion-detallada.md) | Requisitos, `./install.sh`, el hook en `~/.cursor/hooks.json`, los rechazos de `ric`, con capturas de la terminal |
 | **Ver todo lo que hace** | [Showcase](docs/showcase.md) | Cada caso: qué le decís al agente, qué comando corre, qué ves y qué pasa si falla |
+| **Verla en el taller de skills** | [Episodio del taller](https://shiny-adventure-mk5e19w.pages.github.io/) | El episodio que se dio en el taller de team, publicado en GitHub Pages (sitio privado: entrás con tu cuenta de la organización). El guion vive en [`workshop/`](workshop/) |
 | **Consultar un comando o una salida** | [Referencia](docs/referencia.md) | Por qué tmux y no `cursor-agent -p`, los comandos, los códigos de salida y dónde quedan los logs |
 
 ## En tres comandos
