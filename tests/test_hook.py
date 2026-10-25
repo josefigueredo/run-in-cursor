@@ -51,6 +51,15 @@ class InstallTest(unittest.TestCase):
         self.assertTrue(hook.install(path, "python3 /x/ric.py hook"))
         self.assertEqual(json.loads(path.read_text(encoding="utf-8"))["version"], 1)
 
+    def test_another_tool_whose_name_ends_in_ric_py_is_not_ours(self):
+        path = make_dir() / "hooks.json"
+        path.write_text(json.dumps({"version": 1, "hooks": {
+            "stop": [{"command": "python3 /y/fabric.py hook"}],
+            "sessionEnd": [{"command": "python3 /y/fabric.py hook"}]}}), encoding="utf-8")
+        self.assertFalse(hook.installed(path))
+        self.assertTrue(hook.install(path, "python3 /x/ric.py hook"))
+        self.assertTrue(hook.installed(path))
+
 
 if __name__ == "__main__":
     unittest.main()

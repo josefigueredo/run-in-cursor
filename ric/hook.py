@@ -7,6 +7,7 @@ never the prompt or the files, answers `{}` and never fails: a hook that breaks 
 from __future__ import annotations
 
 import json
+import shlex
 import time
 from pathlib import Path
 from typing import Callable, Optional
@@ -36,7 +37,13 @@ def _load(path: Path) -> dict:
 
 
 def _ours(entry: dict) -> bool:
-    return "ric.py" in str(entry.get("command", "")) and str(entry.get("command", "")).endswith(" hook")
+    """`<python> …/ric.py hook`, matched by the file name: `fabric.py hook` is another tool's hook."""
+    command = str(entry.get("command", ""))
+    try:
+        argv = shlex.split(command)
+    except ValueError:
+        argv = command.split()
+    return len(argv) >= 2 and argv[-1] == "hook" and any(Path(a).name == "ric.py" for a in argv[:-1])
 
 
 def installed(path: Path) -> bool:
