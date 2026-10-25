@@ -16,11 +16,17 @@ concurrency:
 jobs:
   test:
     name: python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    # setup-python has no 3.9 for Ubuntu 26.04 (ubuntu-latest since October 2026): 3.9 stays on 24.04, because it is
+    # the /usr/bin/python3 of macOS that the CLI must keep running on
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.12"]
+        include:
+          - python-version: "3.9"
+            os: ubuntu-24.04
+          - python-version: "3.12"
+            os: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
