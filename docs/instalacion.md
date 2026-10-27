@@ -138,7 +138,8 @@ desde Cursor.
 | El agente no encuentra la skill | Comprobá que existan `~/.agents/skills/run-in-cursor` y `~/.claude/skills/run-in-cursor` (o la de `~/.codex`); si no, volvé a correr `./install.sh` |
 | `ric: the global hook is missing …` (código 2) | Falta el hook en `~/.cursor/hooks.json`. Pedile al agente que corra `ric install-hook` y reintente |
 | `ric: tmux is not on PATH` o `cursor-agent is not on PATH` (código 2) | Falta instalarlo (`tmux`) o iniciar el entorno (`cursor-agent`); mirá el paso 2 |
-| `refused: the prompt matches …` (código 1) | Tu `--deny` hizo su trabajo. Reformulá el pedido sin eso, o hacelo vos en Cursor |
+| `refused: the prompt matches …` (código 1) | Tu `--deny` hizo su trabajo. Reformulá el pedido sin eso, o hacelo vos en Cursor. Ojo: también salta si el pedido nombra lo que querías proteger |
+| `argument --deny: expected one argument` (código 2) | El patrón empieza con `-`: pasalo como `--deny=<regex>` |
 | La corrida termina en `timeout` (código 124) | La sesión sigue viva. `tmux attach -t <sesión>` la muestra; después pedile que la cierre |
 | `no such session` al cerrar | El nombre no existe; `tmux ls` lista las sesiones vivas |
 | El instalador dice `refusing to replace … it is not a symlink` | Hay una carpeta real con el nombre de la skill: movela y volvé a correr `./install.sh` |

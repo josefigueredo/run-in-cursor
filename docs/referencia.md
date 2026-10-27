@@ -46,6 +46,15 @@ llevan fecha y hora (`ric-<comando>-AAAAMMDD-HHMMSS`); si ese nombre ya existe e
 
 Salida: 0 completado · 1 abortado, error o rechazado · 124 timeout · 2 falta `tmux` o `cursor-agent`, falta el hook global,
 o un `--deny` que no es una regex válida.
+
+`--deny` se busca solo en el texto que se envía (el pedido de `run` o la respuesta de `send`), sin distinguir mayúsculas.
+No mira los comandos que Cursor corre después. Dos consecuencias, medidas el 2026-10-26:
+
+- Un patrón que empieza con `-` se pasa como `--deny=<regex>`. Con espacio (`--deny '--out\s+x'`), el parser lo toma por
+  otra opción y sale `argument --deny: expected one argument` (código 2).
+- Si el pedido nombra lo mismo que el patrón, la corrida se rechaza. Para que Cursor no pise un archivo, no lo nombres en el
+  pedido con un `--deny` que lo cubra: pedile que escriba en otra ruta y comprobá después el archivo (por ejemplo, su hash).
+
 Los logs quedan en `<workspace>/.run-in-cursor/runs/`, y si el workspace es un repo de git que no la ignora ya, la carpeta se agrega a su `info/exclude` local, nunca al `.gitignore` versionado.
 
 ## Desarrollar

@@ -20,7 +20,8 @@ python3 ~/.agents/skills/run-in-cursor/ric.py <run|send|keys|quit|install-hook> 
 1. **Once per machine:** `ric install-hook` (the installer already ran it). It adds `ric hook` to `~/.cursor/hooks.json`
    on stop and sessionEnd, next to whatever is there; it writes only for sessions `ric` started.
 2. **Run:** `ric run --workspace <repo> "<prompt or /command args>"` (add `--model` only if the user named one). Pass
-   `--deny <regex>` for any command the user keeps for themselves. To load a local Cursor plugin, pass
+   `--deny <regex>` for any command the user keeps for themselves: `ric` refuses to send a text that matches it
+   (a pattern that starts with `-` goes as `--deny=<regex>`). To load a local Cursor plugin, pass
    `--plugin-dir <dir>` (repeatable): cursor-agent does not read `~/.cursor/plugins/local` by itself. Wait for it: it
    returns when the turn ends.
 3. **Read the result:** exit 0 completed, 1 aborted, error or refused, 124 timeout, 2 tmux, cursor-agent or the
@@ -39,4 +40,7 @@ python3 ~/.agents/skills/run-in-cursor/ric.py <run|send|keys|quit|install-hook> 
 - Never `cursor-agent -p`: print mode fires no turn hooks (measured), so nothing records the turns or the tokens.
 - `--force` is on: Cursor runs shell commands without asking. Anything that publishes (push, Jira writes, deploys)
   stays with the user: deny it with `--deny`, or hand them the command for Cursor.
+- `--deny` checks only the text you send, never the commands Cursor runs afterwards: do not tell the user it blocked
+  anything Cursor might do. It also checks your own words, so naming the file you want protected ("do not overwrite
+  X") gets the run refused; leave it unnamed and verify yourself (hash before and after).
 - A timeout leaves the session alive: `tmux attach -t <session>` shows it; then `ric quit`.
